@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const fs = require('fs').promises;
 
 const findPlantData = async (index) => {
   let url = `https://plantdatabase.kpu.ca/plant/plantDetail/${index}`;
@@ -50,12 +51,14 @@ const findPlantData = async (index) => {
 
     return {
       scientificName: scientificName ? scientificName[1] : 'n/a',
-      commonName: commonName ? commonName[1].split(' or ') : 'n/a',
+      commonName: commonName
+        ? commonName[1].split(' or ').join(', ').split(', ')
+        : 'n/a',
       familyName: familyName ? familyName[1] : 'n/a',
-      plantType: plantType ? plantType[1] : 'n/a',
+      plantType: plantType ? plantType[1].split(',') : 'n/a',
       keyFeatures: keyFeatures ? keyFeatures[1] : 'n/a',
-      habitat: habitat ? habitat[1] : 'n/a',
-      form: form ? form[1] : 'n/a',
+      habitat: habitat ? habitat[1].split(',') : 'n/a',
+      form: form ? form[1].split(',') : 'n/a',
       minHeight: height
         ? height[1].includes('>')
           ? +height[1].replace('> ', '').replace('m', '')
@@ -66,31 +69,54 @@ const findPlantData = async (index) => {
           ? +height[1].replace('> ', '').replace('m', '')
           : +height[1].split(' - ')[1].replace('m', '')
         : 'n/a',
-      minSpread: spread ? +spread[1].split(' - ')[0] : 'n/a',
-      maxSpread: spread ? +spread[1].split(' - ')[1].replace('m', '') : 'n/a',
+      minSpread: spread
+        ? spread[1].includes('>')
+          ? +spread[1].replace('> ', '').replace('m', '')
+          : +spread[1].split(' - ')[0]
+        : 'n/a',
+      maxSpread: spread
+        ? spread[1].includes('>')
+          ? +spread[1].replace('> ', '').replace('m', '')
+          : +spread[1].split(' - ')[1].replace('m', '')
+        : 'n/a',
       growthRate: growthRate ? growthRate[1] : 'n/a',
-      origin: origin ? origin[1] : 'n/a',
+      origin: origin ? origin[1].split(',') : 'n/a',
       hardiness: hardiness ? hardiness[1].split(':')[0] : 'n/a',
       exposure: exposure ? exposure[1] : 'n/a',
-      soil: soil ? soil[1] : 'n/a',
-      water: water ? water[1] : 'n/a',
+      soil: soil ? soil[1].split(' or ').join(', ').split(',') : 'n/a',
+      water: water ? water[1].split(',') : 'n/a',
       inflorescence: inflorescence ? inflorescence[1] : 'n/a',
       flowerMorphology: flowerMorphology ? flowerMorphology[1] : 'n/a',
       petalNumber: petalNumber ? +petalNumber[1] : 'n/a',
-      petalColour: petalColour ? petalColour[1] : 'n/a',
+      petalColour: petalColour ? petalColour[1].split(',') : 'n/a',
       flowerScent: flowerScent ? flowerScent[1] : 'n/a',
       flowerTime: flowerTime ? flowerTime[1].split(', ') : 'n/a',
       fruitType: fruitType ? fruitType[1] : 'n/a',
-      fruitColour: fruitColour ? fruitColour[1] : 'n/a',
+      fruitColour: fruitColour ? fruitColour[1].split(',') : 'n/a',
       fruitTime: fruitTime ? fruitTime[1].split(', ') : 'n/a',
-      propagation: propagation ? propagation[1] : 'n/a',
+      propagation: propagation ? propagation[1].split(', ') : 'n/a',
       pests: pests ? pests[1].split(', ') : 'n/a',
     };
   });
-  console.log(data);
   await browser.close();
   return data;
 };
 
 console.log('Starting to Scrap!');
-findPlantData(2);
+
+const getData = async () => {
+  console.log('start');
+  const numArray = Array.from({ length: 1758 }, (_, i) => i + 1);
+  const promises = numArray.map(async (index) => {
+    const data = await findPlantData(index);
+    return data;
+  });
+
+  const allData = await Promise.all(promises);
+  fs.writeFile('plant-data.json', JSON.stringify(allData));
+  console.log(allData);
+
+  console.log('end');
+};
+
+getData();
