@@ -5,7 +5,7 @@ const { Cluster } = require('puppeteer-cluster');
 (async () => {
   const cluster = await Cluster.launch({
     concurrency: Cluster.CONCURRENCY_CONTEXT,
-    maxConcurrency: 2,
+    maxConcurrency: 5,
   });
 
   const urlArray = Array.from(
@@ -14,6 +14,7 @@ const { Cluster } = require('puppeteer-cluster');
   );
 
   const results = [];
+  const count = 0,
 
   await cluster.task(async ({ page, data: url }) => {
     await page.goto(url);
@@ -90,7 +91,7 @@ const { Cluster } = require('puppeteer-cluster');
         growthRate: growthRate ? growthRate[1] : 'n/a',
         origin: origin ? origin[1].split(', ') : 'n/a',
         hardiness: hardiness ? hardiness[1].split(':')[0] : 'n/a',
-        exposure: exposure ? exposure[1] : 'n/a',
+        exposure: exposure ? exposure[1].split(', ') : 'n/a',
         soil: soil ? soil[1].split(' or ').join(', ').split(', ') : 'n/a',
         water: water ? water[1].split(', ') : 'n/a',
         inflorescence: inflorescence ? inflorescence[1] : 'n/a',
@@ -107,12 +108,16 @@ const { Cluster } = require('puppeteer-cluster');
         optimalLight: optimalLight ? optimalLight[1].splite(', ') : 'n/a',
         maintenance: maintenance ? maintenance[1].splite(', ') : 'n/a',
         pests: pests
-          ? pests[1].replace('( ', '').replace(' )', '').split(', ')
+          ? pests[1]
+              .replace(' or ', ', ')
+              .replace('( ', '')
+              .replace(' )', '')
+              .split(', ')
           : 'n/a',
       };
     });
-
-    console.log(data);
+    count++;
+    console.log('Number of records: ', count);
     await results.push(data);
   });
 
