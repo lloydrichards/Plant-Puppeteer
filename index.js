@@ -4,6 +4,7 @@ const { Cluster } = require('puppeteer-cluster');
 
 (async () => {
   const cluster = await Cluster.launch({
+    monitor: true,
     concurrency: Cluster.CONCURRENCY_CONTEXT,
     maxConcurrency: 5,
   });
@@ -14,7 +15,6 @@ const { Cluster } = require('puppeteer-cluster');
   );
 
   const results = [];
-  const count = 0,
 
   await cluster.task(async ({ page, data: url }) => {
     await page.goto(url);
@@ -68,26 +68,30 @@ const { Cluster } = require('puppeteer-cluster');
         keyFeatures: keyFeatures ? keyFeatures[1] : 'n/a',
         habitat: habitat ? habitat[1].split(', ') : 'n/a',
         form: form ? form[1].split(',') : 'n/a',
-        minHeight: height
-          ? height[1].includes('>')
-            ? +height[1].replace('> ', '').replace('m', '')
-            : +height[1].split(' - ')[0]
-          : 'n/a',
-        maxHeight: height
-          ? height[1].includes('>')
-            ? +height[1].replace('> ', '').replace('m', '')
-            : +height[1].split(' - ')[1].replace('m', '')
-          : 'n/a',
-        minSpread: spread
-          ? spread[1].includes('>')
-            ? +spread[1].replace('> ', '').replace('m', '')
-            : +spread[1].split(' - ')[0]
-          : 'n/a',
-        maxSpread: spread
-          ? spread[1].includes('>')
-            ? +spread[1].replace('> ', '').replace('m', '')
-            : +spread[1].split(' - ')[1].replace('m', '')
-          : 'n/a',
+        minHeight:
+          height && height[1]
+            ? height[1].includes('>') || height[1].includes('<')
+              ? +height[1].replace('< ', '').replace('> ', '').replace('m', '')
+              : +height[1].split(' - ')[0]
+            : 'n/a',
+        maxHeight:
+          height && height[1]
+            ? height[1].includes('>') || height[1].includes('<')
+              ? +height[1].replace('< ', '').replace('> ', '').replace('m', '')
+              : +height[1].split(' - ')[1].replace('m', '')
+            : 'n/a',
+        minSpread:
+          spread && spread[1]
+            ? spread[1].includes('>') || spread[1].includes('<')
+              ? +spread[1].replace('< ', '').replace('> ', '').replace('m', '')
+              : +spread[1].split(' - ')[0]
+            : 'n/a',
+        maxSpread:
+          spread && spread[1]
+            ? spread[1].includes('>') || spread[1].includes('<')
+              ? +spread[1].replace('< ', '').replace('> ', '').replace('m', '')
+              : +spread[1].split(' - ')[1].replace('m', '')
+            : 'n/a',
         growthRate: growthRate ? growthRate[1] : 'n/a',
         origin: origin ? origin[1].split(', ') : 'n/a',
         hardiness: hardiness ? hardiness[1].split(':')[0] : 'n/a',
@@ -104,9 +108,9 @@ const { Cluster } = require('puppeteer-cluster');
         fruitColour: fruitColour ? fruitColour[1].split(',') : 'n/a',
         fruitTime: fruitTime ? fruitTime[1].split(', ') : 'n/a',
         propagation: propagation ? propagation[1].split(', ') : 'n/a',
-        optimalTemp: optimalTemp ? optimalTemp[1].splite(', ') : 'n/a',
-        optimalLight: optimalLight ? optimalLight[1].splite(', ') : 'n/a',
-        maintenance: maintenance ? maintenance[1].splite(', ') : 'n/a',
+        optimalTemp: optimalTemp ? optimalTemp[1].split(', ') : 'n/a',
+        optimalLight: optimalLight ? optimalLight[1].split(', ') : 'n/a',
+        maintenance: maintenance ? maintenance[1].split(', ') : 'n/a',
         pests: pests
           ? pests[1]
               .replace(' or ', ', ')
@@ -116,8 +120,6 @@ const { Cluster } = require('puppeteer-cluster');
           : 'n/a',
       };
     });
-    count++;
-    console.log('Number of records: ', count);
     await results.push(data);
   });
 
@@ -125,8 +127,15 @@ const { Cluster } = require('puppeteer-cluster');
     cluster.queue(i);
   });
 
+  cluster.on('taskerror', (err, data) => {
+    console.log(`Error crawling ${data}: ${err.message}`);
+  });
+
   await cluster.idle();
   await cluster.close();
 
-  await fs.writeFile('plant-data.json', JSON.stringify(results));
+  await fs.writeFile(
+    'plant-data2.json',
+    JSON.stringify(results.filter((i) => i.scientificName !== 'n/a'))
+  );
 })();
