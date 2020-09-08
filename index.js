@@ -1,122 +1,127 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
+const { Cluster } = require('puppeteer-cluster');
 
-const findPlantData = async (index) => {
-  let url = `https://plantdatabase.kpu.ca/plant/plantDetail/${index}`;
-  //Set up chromium browser and open new page.
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
+(async () => {
+  const cluster = await Cluster.launch({
+    concurrency: Cluster.CONCURRENCY_CONTEXT,
+    maxConcurrency: 2,
+  });
 
-  //send bowser to stored page
-  await page.goto(url);
-  let data = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('table tr'));
+  const urlArray = Array.from(
+    { length: 1758 },
+    (_, i) => 'https://plantdatabase.kpu.ca/plant/plantDetail/' + (i + 1)
+  );
 
-    const data = Array.from(rows, (rows) => {
-      const columns = rows.querySelectorAll('td');
-      return Array.from(columns, (column) => column.innerText);
+  const results = [];
+
+  await cluster.task(async ({ page, data: url }) => {
+    await page.goto(url);
+    let data = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('table tr'));
+
+      const data = Array.from(rows, (rows) => {
+        const columns = rows.querySelectorAll('td');
+        return Array.from(columns, (column) => column.innerText);
+      });
+      const scientificName = data.find((i) => i[0] === 'Scientific Name:');
+      const commonName = data.find((i) => i[0] === 'Common Name:');
+      const familyName = data.find((i) => i[0] === 'Family Name:');
+      const plantType = data.find((i) => i[0] === 'Plant Type:');
+      const keyFeatures = data.find((i) => i[0] === 'Key ID Features:');
+
+      const habitat = data.find((i) => i[0] === 'Habit:');
+      const form = data.find((i) => i[0] === 'Form:');
+      const height = data.find((i) => i[0] === 'Height:');
+      const spread = data.find((i) => i[0] === 'Spread:');
+      const growthRate = data.find((i) => i[0] === 'Growth Rate:');
+      const origin = data.find((i) => i[0] === 'Origin:');
+      const hardiness = data.find((i) => i[0] === 'Hardiness Rating:');
+      const exposure = data.find((i) => i[0] === 'Exposure:');
+      const soil = data.find((i) => i[0] === 'Soil/ Growing Medium:');
+      const water = data.find((i) => i[0] === 'Water Use:');
+
+      const inflorescence = data.find((i) => i[0] === 'Inflorescence Type:');
+      const flowerMorphology = data.find((i) => i[0] === 'Flower Morphology:');
+      const petalNumber = data.find((i) => i[0] === 'Number of Petals:');
+      const petalColour = data.find((i) => i[0] === 'Colour (petals):');
+      const flowerScent = data.find((i) => i[0] === 'Flower Scent:');
+      const flowerTime = data.find((i) => i[0] === 'Flower Time at Peak:');
+      const fruitType = data.find((i) => i[0] === 'Fruit Type:');
+      const fruitColour = data.find((i) => i[0] === 'Fruit Colour:');
+      const fruitTime = data.find((i) => i[0] === 'Fruiting Time:');
+
+      const propagation = data.find((i) => i[0] === 'Propagation:');
+      const optimalTemp = data.find((i) => i[0] === 'Optimal Temp.:');
+      const optimalLight = data.find((i) => i[0] === 'Light Level:');
+      const maintenance = data.find((i) => i[0] === 'Maintenance:');
+      const pests = data.find((i) => i[0] === 'Pest Susceptibility:');
+
+      return {
+        scientificName: scientificName ? scientificName[1] : 'n/a',
+        commonName: commonName
+          ? commonName[1].split(' or ').join(', ').split(', ')
+          : 'n/a',
+        familyName: familyName ? familyName[1] : 'n/a',
+        plantType: plantType ? plantType[1].split(', ') : 'n/a',
+        keyFeatures: keyFeatures ? keyFeatures[1] : 'n/a',
+        habitat: habitat ? habitat[1].split(', ') : 'n/a',
+        form: form ? form[1].split(',') : 'n/a',
+        minHeight: height
+          ? height[1].includes('>')
+            ? +height[1].replace('> ', '').replace('m', '')
+            : +height[1].split(' - ')[0]
+          : 'n/a',
+        maxHeight: height
+          ? height[1].includes('>')
+            ? +height[1].replace('> ', '').replace('m', '')
+            : +height[1].split(' - ')[1].replace('m', '')
+          : 'n/a',
+        minSpread: spread
+          ? spread[1].includes('>')
+            ? +spread[1].replace('> ', '').replace('m', '')
+            : +spread[1].split(' - ')[0]
+          : 'n/a',
+        maxSpread: spread
+          ? spread[1].includes('>')
+            ? +spread[1].replace('> ', '').replace('m', '')
+            : +spread[1].split(' - ')[1].replace('m', '')
+          : 'n/a',
+        growthRate: growthRate ? growthRate[1] : 'n/a',
+        origin: origin ? origin[1].split(', ') : 'n/a',
+        hardiness: hardiness ? hardiness[1].split(':')[0] : 'n/a',
+        exposure: exposure ? exposure[1] : 'n/a',
+        soil: soil ? soil[1].split(' or ').join(', ').split(', ') : 'n/a',
+        water: water ? water[1].split(', ') : 'n/a',
+        inflorescence: inflorescence ? inflorescence[1] : 'n/a',
+        flowerMorphology: flowerMorphology ? flowerMorphology[1] : 'n/a',
+        petalNumber: petalNumber ? +petalNumber[1] : 'n/a',
+        petalColour: petalColour ? petalColour[1].split(', ') : 'n/a',
+        flowerScent: flowerScent ? flowerScent[1] : 'n/a',
+        flowerTime: flowerTime ? flowerTime[1].split(', ') : 'n/a',
+        fruitType: fruitType ? fruitType[1] : 'n/a',
+        fruitColour: fruitColour ? fruitColour[1].split(',') : 'n/a',
+        fruitTime: fruitTime ? fruitTime[1].split(', ') : 'n/a',
+        propagation: propagation ? propagation[1].split(', ') : 'n/a',
+        optimalTemp: optimalTemp ? optimalTemp[1].splite(', ') : 'n/a',
+        optimalLight: optimalLight ? optimalLight[1].splite(', ') : 'n/a',
+        maintenance: maintenance ? maintenance[1].splite(', ') : 'n/a',
+        pests: pests
+          ? pests[1].replace('( ', '').replace(' )', '').split(', ')
+          : 'n/a',
+      };
     });
-    const scientificName = data.find((i) => i[0] === 'Scientific Name:');
-    const commonName = data.find((i) => i[0] === 'Common Name:');
-    const familyName = data.find((i) => i[0] === 'Family Name:');
-    const plantType = data.find((i) => i[0] === 'Plant Type:');
-    const keyFeatures = data.find((i) => i[0] === 'Key ID Features:');
 
-    const habitat = data.find((i) => i[0] === 'Habit:');
-    const form = data.find((i) => i[0] === 'Form:');
-    const height = data.find((i) => i[0] === 'Height:');
-    const spread = data.find((i) => i[0] === 'Spread:');
-    const growthRate = data.find((i) => i[0] === 'Growth Rate:');
-    const origin = data.find((i) => i[0] === 'Origin:');
-    const hardiness = data.find((i) => i[0] === 'Hardiness Rating:');
-    const exposure = data.find((i) => i[0] === 'Exposure:');
-    const soil = data.find((i) => i[0] === 'Soil/ Growing Medium:');
-    const water = data.find((i) => i[0] === 'Water Use:');
-
-    const inflorescence = data.find((i) => i[0] === 'Inflorescence Type:');
-    const flowerMorphology = data.find((i) => i[0] === 'Flower Morphology:');
-    const petalNumber = data.find((i) => i[0] === 'Number of Petals:');
-    const petalColour = data.find((i) => i[0] === 'Colour (petals):');
-    const flowerScent = data.find((i) => i[0] === 'Flower Scent:');
-    const flowerTime = data.find((i) => i[0] === 'Flower Time at Peak:');
-    const fruitType = data.find((i) => i[0] === 'Fruit Type:');
-    const fruitColour = data.find((i) => i[0] === 'Fruit Colour:');
-    const fruitTime = data.find((i) => i[0] === 'Fruiting Time:');
-
-    const propagation = data.find((i) => i[0] === 'Propagation:');
-    const optimalTemp = data.find((i) => i[0] === 'Optimal Temp.:');
-    const optimalLight = data.find((i) => i[0] === 'Light Level:');
-    const maintenance = data.find((i) => i[0] === 'Maintenance:');
-    const pests = data.find((i) => i[0] === 'Pest Susceptibility:');
-
-    return {
-      scientificName: scientificName ? scientificName[1] : 'n/a',
-      commonName: commonName
-        ? commonName[1].split(' or ').join(', ').split(', ')
-        : 'n/a',
-      familyName: familyName ? familyName[1] : 'n/a',
-      plantType: plantType ? plantType[1].split(',') : 'n/a',
-      keyFeatures: keyFeatures ? keyFeatures[1] : 'n/a',
-      habitat: habitat ? habitat[1].split(',') : 'n/a',
-      form: form ? form[1].split(',') : 'n/a',
-      minHeight: height
-        ? height[1].includes('>')
-          ? +height[1].replace('> ', '').replace('m', '')
-          : +height[1].split(' - ')[0]
-        : 'n/a',
-      maxHeight: height
-        ? height[1].includes('>')
-          ? +height[1].replace('> ', '').replace('m', '')
-          : +height[1].split(' - ')[1].replace('m', '')
-        : 'n/a',
-      minSpread: spread
-        ? spread[1].includes('>')
-          ? +spread[1].replace('> ', '').replace('m', '')
-          : +spread[1].split(' - ')[0]
-        : 'n/a',
-      maxSpread: spread
-        ? spread[1].includes('>')
-          ? +spread[1].replace('> ', '').replace('m', '')
-          : +spread[1].split(' - ')[1].replace('m', '')
-        : 'n/a',
-      growthRate: growthRate ? growthRate[1] : 'n/a',
-      origin: origin ? origin[1].split(',') : 'n/a',
-      hardiness: hardiness ? hardiness[1].split(':')[0] : 'n/a',
-      exposure: exposure ? exposure[1] : 'n/a',
-      soil: soil ? soil[1].split(' or ').join(', ').split(',') : 'n/a',
-      water: water ? water[1].split(',') : 'n/a',
-      inflorescence: inflorescence ? inflorescence[1] : 'n/a',
-      flowerMorphology: flowerMorphology ? flowerMorphology[1] : 'n/a',
-      petalNumber: petalNumber ? +petalNumber[1] : 'n/a',
-      petalColour: petalColour ? petalColour[1].split(',') : 'n/a',
-      flowerScent: flowerScent ? flowerScent[1] : 'n/a',
-      flowerTime: flowerTime ? flowerTime[1].split(', ') : 'n/a',
-      fruitType: fruitType ? fruitType[1] : 'n/a',
-      fruitColour: fruitColour ? fruitColour[1].split(',') : 'n/a',
-      fruitTime: fruitTime ? fruitTime[1].split(', ') : 'n/a',
-      propagation: propagation ? propagation[1].split(', ') : 'n/a',
-      pests: pests ? pests[1].split(', ') : 'n/a',
-    };
-  });
-  await browser.close();
-  return data;
-};
-
-console.log('Starting to Scrap!');
-
-const getData = async () => {
-  console.log('start');
-  const numArray = Array.from({ length: 1758 }, (_, i) => i + 1);
-  const promises = numArray.map(async (index) => {
-    const data = await findPlantData(index);
-    return data;
+    console.log(data);
+    await results.push(data);
   });
 
-  const allData = await Promise.all(promises);
-  fs.writeFile('plant-data.json', JSON.stringify(allData));
-  console.log(allData);
+  urlArray.forEach((i) => {
+    cluster.queue(i);
+  });
 
-  console.log('end');
-};
+  await cluster.idle();
+  await cluster.close();
 
-getData();
+  await fs.writeFile('plant-data.json', JSON.stringify(results));
+})();
